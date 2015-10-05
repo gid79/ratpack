@@ -16,6 +16,7 @@
 
 package ratpack.session.store.internal;
 
+import com.google.common.base.Splitter;
 import io.netty.handler.codec.http.Cookie;
 import ratpack.func.Action;
 import ratpack.func.Pair;
@@ -31,6 +32,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -39,6 +41,9 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class CookieBasedSessionStorageBindingHandler implements Handler {
+
+  public static final String DATA_DIGEST_DELIMITER = ".";
+  public static final Splitter DATA_DIGEST_SPLITTER = Splitter.on(DATA_DIGEST_DELIMITER);
 
   private final String ratpack_session = "ratpack_session";
   private final Handler handler;
@@ -96,7 +101,7 @@ public class CookieBasedSessionStorageBindingHandler implements Handler {
             String s = Base64.getUrlEncoder().encodeToString(encodedPairs.getBytes("utf-8"));
             String digest = context.get(Crypto.class).sign(encodedPairs);
 
-            responseMetaData.cookie(ratpack_session, s + "-" + digest);
+            responseMetaData.cookie(ratpack_session, s + DATA_DIGEST_DELIMITER + digest);
           }
         }
       }
@@ -112,10 +117,10 @@ public class CookieBasedSessionStorageBindingHandler implements Handler {
 
     String encodedPairs = cookieSession == null ? null : cookieSession.getValue();
     if (encodedPairs != null) {
-      String[] parts = encodedPairs.split("-");
-      if (parts.length == 2) {
-        String encoded = parts[0];
-        String digest = parts[1];
+      List<String> parts = DATA_DIGEST_SPLITTER.splitToList(encodedPairs);
+      if (parts.size() == 2) {
+        String encoded = parts.get(0);
+        String digest = parts.get(1);
 
         Crypto crypto = context.get(Crypto.class);
         try {

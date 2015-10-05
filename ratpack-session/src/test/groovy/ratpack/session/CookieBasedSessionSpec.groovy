@@ -16,10 +16,13 @@
 
 package ratpack.session
 
+import com.google.common.base.Splitter
 import ratpack.http.MutableHeaders
+import ratpack.http.Request
 import ratpack.http.client.RequestSpec
 import ratpack.session.store.CookieBasedSessionsModule
 import ratpack.session.store.SessionStorage
+import ratpack.session.store.internal.CookieBasedSessionStorageBindingHandler
 import ratpack.test.internal.RatpackGroovyDslSpec
 import spock.lang.Ignore
 import spock.lang.Unroll
@@ -31,7 +34,7 @@ class CookieBasedSessionSpec extends RatpackGroovyDslSpec {
   }
 
   def getDecodedPairs(String rawCookie) {
-    def parts = rawCookie.split("-")[0]
+    def parts = Splitter.on(CookieBasedSessionStorageBindingHandler.DATA_DIGEST_DELIMITER).split(rawCookie)[0]
     def encoded = parts['ratpack_session="'.length()..<parts.length()]
     new String(Base64.getUrlDecoder().decode(encoded.getBytes("utf-8")))
       .split("&")
@@ -172,6 +175,7 @@ class CookieBasedSessionSpec extends RatpackGroovyDslSpec {
 
     when:
     get()
+
     session = getDecodedPairs(response.headers.get("Set-Cookie"))
 
     then:
@@ -181,6 +185,7 @@ class CookieBasedSessionSpec extends RatpackGroovyDslSpec {
     get("clear")
 
     then:
+    response.headers.contains("Set-Cookie")
     response.headers.get("Set-Cookie").startsWith("ratpack_session=; Expires=")
   }
 
